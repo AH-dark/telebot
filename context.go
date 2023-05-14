@@ -1,6 +1,7 @@
 package telebot
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -17,7 +18,7 @@ type Context interface {
 	Bot() *Bot
 
 	// Update returns the original update.
-	Update() Update
+	Update() *Update
 
 	// Message returns stored message if such presented.
 	Message() *Message
@@ -160,16 +161,47 @@ type Context interface {
 // "context" is taken by context package, maybe there is a better name.
 type nativeContext struct {
 	b     *Bot
-	u     Update
+	u     *Update
 	lock  sync.RWMutex
 	store map[string]interface{}
+}
+
+var _ context.Context = (*nativeContext)(nil)
+
+// Value implements the context.Context interface.
+func (c *nativeContext) Value(key interface{}) interface{} {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	if key, ok := key.(string); ok {
+		if _, ok := c.store[key]; ok {
+			return c.store[key]
+		}
+	}
+
+	return c.u.context.Value(key)
+}
+
+// Done implements the context.Context interface.
+func (c *nativeContext) Done() <-chan struct{} {
+	return c.u.context.Done()
+}
+
+// Err implements the context.Context interface.
+func (c *nativeContext) Err() error {
+	return c.u.context.Err()
+}
+
+// Deadline implements the context.Context interface.
+func (c *nativeContext) Deadline() (deadline time.Time, ok bool) {
+	return c.u.context.Deadline()
 }
 
 func (c *nativeContext) Bot() *Bot {
 	return c.b
 }
 
-func (c *nativeContext) Update() Update {
+func (c *nativeContext) Update() *Update {
 	return c.u
 }
 

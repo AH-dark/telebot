@@ -1,10 +1,16 @@
 package telebot
 
-import "strings"
+import (
+	"context"
+	"strings"
+	"time"
+)
 
 // Update object represents an incoming update.
 type Update struct {
-	ID int `json:"update_id"`
+	context context.Context // for custom data
+
+	ID int `json:"update_id"` // The update‘s unique identifier
 
 	Message           *Message          `json:"message,omitempty"`
 	EditedMessage     *Message          `json:"edited_message,omitempty"`
@@ -20,6 +26,50 @@ type Update struct {
 	MyChatMember      *ChatMemberUpdate `json:"my_chat_member,omitempty"`
 	ChatMember        *ChatMemberUpdate `json:"chat_member,omitempty"`
 	ChatJoinRequest   *ChatJoinRequest  `json:"chat_join_request,omitempty"`
+}
+
+var _ context.Context = (*Update)(nil)
+
+// Context returns context.Context object.
+func (u *Update) Context() context.Context {
+	if u.context == nil {
+		u.context = context.Background()
+	}
+
+	return u.context
+}
+
+// WithContext returns a shallow copy of u with its context changed
+// to ctx. The provided ctx must be non-nil.
+func (u *Update) WithContext(ctx context.Context) *Update {
+	if ctx == nil {
+		return nil
+	}
+
+	newUpdate := new(Update)
+	*newUpdate = *u
+	newUpdate.context = ctx
+	return newUpdate
+}
+
+// Value implements context.Context interface.
+func (u *Update) Value(key interface{}) interface{} {
+	return u.Context().Value(key)
+}
+
+// Done implements context.Context interface.
+func (u *Update) Done() <-chan struct{} {
+	return u.Context().Done()
+}
+
+// Err implements context.Context interface.
+func (u *Update) Err() error {
+	return u.Context().Err()
+}
+
+// Deadline implements context.Context interface.
+func (u *Update) Deadline() (deadline time.Time, ok bool) {
+	return u.Context().Deadline()
 }
 
 // ProcessUpdate processes a single incoming update.
